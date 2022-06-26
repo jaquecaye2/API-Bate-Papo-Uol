@@ -31,7 +31,7 @@ app.use(express.json());
   const participantes = await db.collection("participants").find().toArray()
 
   for (let i = 0; i < participantes.length; i++){
-    if (participantes[i].lastStatus + 10 < Date.now()){
+    if (participantes[i].lastStatus < Date.now() - 10){
       await db.collection("participants").deleteOne({name: participantes[i].name})
 
       let message = {from: participantes[i].name, to: 'Todos', text: 'sai da sala...', type: 'status', time: `${dayjs().$H}:${dayjs().$m}:${dayjs().$s}`}
@@ -149,24 +149,58 @@ app.post("/messages", async (request, response) => {
 });
 
 app.get("/messages", async (request, response) => {
-
-  const limit = parseInt(request.query.limit)
+  const limit = parseInt(request.query.limit);
   const user = request.headers.user;
 
   try {
-    const messages = await db.collection("messages").find({$or: [{"type": "message"}, {"type": "status"}, {"to": user}, {"from": user}]}).toArray();
+    const messages = await db
+      .collection("messages")
+      .find({
+        $or: [
+          { type: "message" },
+          { type: "status" },
+          { to: user },
+          { from: user },
+        ],
+      })
+      .toArray();
 
-    if (limit === undefined){
+    if (limit === undefined) {
       response.send(messages);
     } else {
       response.send(messages.slice(`-${limit}`));
     }
-
   } catch (error) {
     response.status(500).send();
   }
 });
 
-app.post("/status", (request, response) => {});
+app.post("/status", async (request, response) => {
+  const user = request.headers.user;
+
+  const participantesAtivos = await db
+    .collection("participants")
+    .find()
+    .toArray();
+
+  let participanteEncontrado = false;
+
+  for (let i = 0; i < participantesAtivos.length; i++) {
+    if (participantesAtivos[i].name === user) {
+      participanteEncontrado = true;
+    }
+  }
+
+  if ((participanteEncontrado = false)) {
+    response.status(404).send();
+    return false;
+  }
+
+  await db
+    .collection("participants")
+    .updateOne({name: user},{$set: {lastStatus: Date.now()}});
+
+  response.status(200).send()
+});
 
 app.listen(5000);
