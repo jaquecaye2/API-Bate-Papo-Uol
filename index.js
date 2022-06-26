@@ -100,7 +100,7 @@ app.post("/messages", async (request, response) => {
   const { to, text, type } = request.body;
   const user = request.headers.user;
 
-  const validou = messageSchema.validate({to, text, type});
+  const validou = messageSchema.validate({ to, text, type });
 
   if (validou.error) {
     response.status(422).send();
@@ -112,23 +112,22 @@ app.post("/messages", async (request, response) => {
     .find()
     .toArray();
 
-  let from = ""
-  let participanteEncontrado = false
-
+  let from = "";
+  let participanteEncontrado = false;
 
   for (let i = 0; i < participantesAtivos.length; i++) {
     if (participantesAtivos[i].name === user) {
-      from = user
-      participanteEncontrado = true
+      from = user;
+      participanteEncontrado = true;
     }
   }
 
-  if (participanteEncontrado = false){
+  if ((participanteEncontrado = false)) {
     response.status(422).send();
     return false;
   }
 
-  if (type !== 'message' && type !== 'private_message'){
+  if (type !== "message" && type !== "private_message") {
     response.status(422).send();
     return false;
   }
@@ -150,9 +149,22 @@ app.post("/messages", async (request, response) => {
 });
 
 app.get("/messages", async (request, response) => {
-  const messages = await db.collection("messages").find().toArray();
 
-  response.send(messages);
+  const limit = parseInt(request.query.limit)
+  const user = request.headers.user;
+
+  try {
+    const messages = await db.collection("messages").find({$or: [{"type": "message"}, {"type": "status"}, {"to": user}, {"from": user}]}).toArray();
+
+    if (limit === undefined){
+      response.send(messages);
+    } else {
+      response.send(messages.slice(`-${limit}`));
+    }
+
+  } catch (error) {
+    response.status(500).send();
+  }
 });
 
 app.post("/status", (request, response) => {});
