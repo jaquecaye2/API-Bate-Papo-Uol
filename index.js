@@ -12,14 +12,19 @@ client.connect().then(() => {
 });
 
 const participantSchema = joi.object({
-  name: joi.string().required()
-})
+  name: joi.string().required(),
+});
+
+const messageSchema = joi.object({
+  to: joi.string().required(),
+  text: joi.string().required(),
+  type: joi.string().required(),
+});
 
 const app = express();
 
 app.use(cors());
 app.use(express.json());
-
 
 /*setInterval(async () => {
 
@@ -39,12 +44,12 @@ app.use(express.json());
 app.post("/participants", async (request, response) => {
   const { name } = request.body;
 
-  const validou = participantSchema.validate(request.body)
+  const validou = participantSchema.validate(request.body);
 
-  if(validou.error){
-    const messages = validou.error.details.map(item => item.message)
+  if (validou.error) {
+    const messages = validou.error.details.map((item) => item.message);
     response.status(422).send(messages);
-    return false
+    return false;
   }
 
   const participantesAtivos = await db
@@ -55,7 +60,7 @@ app.post("/participants", async (request, response) => {
   for (let i = 0; i < participantesAtivos.length; i++) {
     if (participantesAtivos[i].name === name) {
       response.status(409).send();
-      return false
+      return false;
     }
   }
 
@@ -83,12 +88,66 @@ app.post("/participants", async (request, response) => {
 });
 
 app.get("/participants", async (request, response) => {
-  const participants = await db.collection("participants").find().toArray();
-
-  response.send(participants);
+  try {
+    const participants = await db.collection("participants").find().toArray();
+    response.send(participants);
+  } catch (error) {
+    response.status(500).send();
+  }
 });
 
-app.post("/messages", (request, response) => {});
+app.post("/messages", async (request, response) => {
+  const { to, text, type } = request.body;
+  const user = request.headers.user;
+
+  const validou = messageSchema.validate({to, text, type});
+
+  if (validou.error) {
+    response.status(422).send();
+    return false;
+  }
+
+  const participantesAtivos = await db
+    .collection("participants")
+    .find()
+    .toArray();
+
+  let from = ""
+  let participanteEncontrado = false
+
+
+  for (let i = 0; i < participantesAtivos.length; i++) {
+    if (participantesAtivos[i].name === user) {
+      from = user
+      participanteEncontrado = true
+    }
+  }
+
+  if (participanteEncontrado = false){
+    response.status(422).send();
+    return false;
+  }
+
+  if (type !== 'message' && type !== 'private_message'){
+    response.status(422).send();
+    return false;
+  }
+
+  const message = {
+    from,
+    to,
+    text,
+    type,
+    time: `${dayjs().$H}:${dayjs().$m}:${dayjs().$s}`,
+  };
+
+  try {
+    await db.collection("messages").insertOne(message);
+    response.status(201).send();
+  } catch (error) {
+    response.status(500).send();
+  }
+});
 
 app.get("/messages", async (request, response) => {
   const messages = await db.collection("messages").find().toArray();
