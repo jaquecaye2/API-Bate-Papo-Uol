@@ -26,12 +26,12 @@ const app = express();
 app.use(cors());
 app.use(express.json());
 
-/*setInterval(async () => {
+setInterval(async () => {
 
   const participantes = await db.collection("participants").find().toArray()
 
   for (let i = 0; i < participantes.length; i++){
-    if (participantes[i].lastStatus < Date.now() - 10){
+    if (participantes[i].lastStatus + 10000 < Date.now()){
       await db.collection("participants").deleteOne({name: participantes[i].name})
 
       let message = {from: participantes[i].name, to: 'Todos', text: 'sai da sala...', type: 'status', time: `${dayjs().$H}:${dayjs().$m}:${dayjs().$s}`}
@@ -39,7 +39,7 @@ app.use(express.json());
       await db.collection("messages").insertOne(message);
     }
   }
-}, 15000)*/
+}, 15000)
 
 app.post("/participants", async (request, response) => {
   const { name } = request.body;
